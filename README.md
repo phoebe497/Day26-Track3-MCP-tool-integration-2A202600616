@@ -1,181 +1,96 @@
-# Lab: Build a Database MCP Server with FastMCP and SQLite
+# Database MCP Server using FastMCP and SQLite (Lab 26 - Track 3)
 
-## Goal
+## 🎯 Overview
+This project implements a FastMCP server that connects to a SQLite database. It securely exposes database schemas as MCP resources and provides tools for interacting with the data. 
 
-Build a Model Context Protocol (MCP) server using FastMCP that exposes a small database through:
+**Mục tiêu đạt được**: Server cung cấp cầu nối cho các AI (Claude, Gemini, Antigravity) hiểu được cấu trúc Database và thực thi các lệnh CRUD một cách an toàn, chống 100% rủi ro SQL Injection.
 
-- `search`
-- `insert`
-- `aggregate`
+---
 
-You must also expose the database schema as an MCP resource, test the server with Inspector or equivalent tooling, and show the server working from at least one MCP client.
+## 🛠️ Features & Tools
 
-## Learning Outcomes
+### 1. Context Resources (Cung cấp bối cảnh cho AI)
+- `schema://database`: Trả về toàn bộ DDL (cấu trúc bảng) của Database.
+- `schema://table/{table_name}`: Trả về DDL của một bảng cụ thể.
 
-By the end of this lab, students should be able to:
+### 2. Action Tools (Công cụ hành động)
+- **`search(table, filter_col, filter_val)`**: Truy vấn dữ liệu có điều kiện.
+- **`insert(table, data_json)`**: Thêm một dòng dữ liệu mới vào bảng thông qua chuỗi JSON.
+- **`aggregate(table, column, func)`**: Thực hiện các phép toán tổng hợp (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`).
 
-- explain what MCP tools and resources are
-- build a FastMCP server in Python
-- connect FastMCP to a SQLite database
-- safely validate database requests before executing SQL
-- expose dynamic schema context through `@mcp.resource(...)`
-- test tool schemas, normal calls, and error responses
-- connect the server to an MCP client such as Claude Code, Codex, or Gemini CLI
+### 3. Security (Bảo mật)
+- **Zero SQL Injection**: Mọi tham số đầu vào (tên bảng, tên cột) đều được đối chiếu (validate) trực tiếp với `sqlite_master` và `PRAGMA table_info` trước khi ghép vào chuỗi SQL. Bất kỳ cột/bảng lạ nào cũng bị từ chối ngay lập tức.
 
-## Required Features
+---
 
-### Part 1: MCP Server
+## 🚀 Setup Instructions
 
-Implement a FastMCP server that exposes exactly these tool categories:
-
-1. `search`
-2. `insert`
-3. `aggregate`
-
-Your server may use SQLite for the main implementation. If you want to support PostgreSQL too, design the code so the database layer can be swapped later.
-
-### Part 2: Resource
-
-Expose database schema information as MCP resources:
-
-- one resource for the full database schema
-- one dynamic resource template for a single table schema
-
-Suggested URIs:
-
-- `schema://database`
-- `schema://table/{table_name}`
-
-### Part 3: Validation and Error Handling
-
-Your tools must reject unsafe or invalid requests:
-
-- unknown table names
-- unknown column names
-- unsupported filter operators
-- invalid aggregate requests
-- empty inserts
-
-Do not build SQL by blindly concatenating raw user input.
-
-### Part 4: Testing and Verification
-
-Verify all of the following:
-
-1. the server starts correctly
-2. the three tools are discoverable
-3. the schema resource is discoverable
-4. valid tool calls return useful results
-5. invalid tool calls return clear errors
-6. at least one MCP client can connect and use the server
-
-### Part 5: Demo Deliverables
-
-Prepare:
-
-- GitHub repository
-- setup instructions
-- tool descriptions
-- testing steps
-- at least one client configuration example
-- short demo video, around 2 minutes
-
-Inspector screenshots are recommended if you use MCP Inspector.
-
-## Suggested Project Structure
-
-```text
-implementation/
-  db.py
-  init_db.py
-  mcp_server.py
-  verify_server.py
-  tests/
-    test_server.py
+1. **Khởi tạo môi trường ảo và cài thư viện**:
+```bash
+uv venv
+uv pip install mcp fastmcp pydantic
 ```
 
-## Recommended Data Model
-
-Use a small relational dataset so `search`, `insert`, and `aggregate` are easy to demo. Example:
-
-- `students`
-- `courses`
-- `enrollments`
-
-## Example Tasks to Demonstrate
-
-- search all students in cohort `A1`
-- insert a new student
-- count rows in a table
-- compute average score by cohort
-- read the full schema resource
-- read `schema://table/students`
-- show an invalid request, such as searching a missing table
-
-## FastMCP and Inspector References
-
-- FastMCP quickstart: https://gofastmcp.com/v2/getting-started/quickstart
-- FastMCP resources: https://gofastmcp.com/v2/servers/resources
-- MCP Inspector: https://modelcontextprotocol.io/docs/tools/inspector
-
-## Client Setup Notes
-
-### Claude Code
-
-Anthropic documents local JSON config and `claude mcp add` flows here:
-
-- https://code.claude.com/docs/en/mcp
-
-Claude Code supports MCP resources via `@server:resource-uri` references and supports environment variable expansion in `.mcp.json`.
-
-### Codex
-
-OpenAI documents Codex MCP setup here:
-
-- https://developers.openai.com/learn/docs-mcp
-
-Codex supports MCP server configuration through the CLI and `~/.codex/config.toml`.
-
-### Gemini CLI
-
-Gemini CLI has a built-in MCP manager. In the verified local workflow, the simplest path is:
-
+2. **Khởi tạo Database và nạp Seed Data**:
 ```bash
-gemini mcp add sqlite-lab /ABSOLUTE/PATH/TO/python /ABSOLUTE/PATH/TO/implementation/mcp_server.py --description "SQLite lab FastMCP server" --timeout 10000
+cd implementation
+..\.venv\Scripts\python init_db.py
+```
+Lệnh này sẽ tạo ra file `university.db` với 3 bảng: `students`, `courses`, `enrollments` kèm dữ liệu mẫu.
+
+---
+
+## 🧪 Testing & Verification
+
+Dự án cung cấp 3 cách để kiểm thử tính năng và bảo mật:
+
+### Cách 1: Automated Script Test (E2E)
+Chạy script tự động (gọi Server qua luồng stdio) để test cả tác vụ đúng lẫn các nỗ lực tấn công phá hoại:
+```bash
+cd implementation
+..\.venv\Scripts\python verify_server.py
+```
+
+### Cách 2: Security Unit Tests
+Chạy bộ Unit Test chuyên dụng để kiểm tra lớp Database Layer (`db.py`):
+```bash
+cd implementation
+..\.venv\Scripts\python -m unittest tests/test_server.py
+```
+
+### Cách 3: MCP Inspector (UI)
+Sử dụng công cụ Inspector của giao thức MCP để test trực quan trên trình duyệt:
+```bash
+cd implementation
+npx @modelcontextprotocol/inspector ..\.venv\Scripts\python mcp_server.py
+```
+
+---
+
+## 🤖 Client Configuration Example
+
+### 1. Gemini CLI
+Để kết nối MCP Server này vào Gemini CLI, chạy lệnh sau (nhớ thay bằng đường dẫn tuyệt đối trên máy bạn):
+```bash
+gemini mcp add sqlite-lab /ABSOLUTE/PATH/TO/.venv/Scripts/python /ABSOLUTE/PATH/TO/implementation/mcp_server.py --timeout 10000
+```
+Sau đó kiểm tra danh sách Tool:
+```bash
 gemini mcp list
 ```
 
-Gemini CLI also documents configuration details here:
+### 2. Claude Code
+Thêm cấu hình sau vào file `.mcp.json` của Claude:
+```json
+{
+  "mcpServers": {
+    "sqlite-lab": {
+      "command": "/ABSOLUTE/PATH/TO/.venv/Scripts/python",
+      "args": ["/ABSOLUTE/PATH/TO/implementation/mcp_server.py"]
+    }
+  }
+}
+```
 
-- https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/configuration.md
-
-Expected outcome:
-
-- the server appears as `Connected`
-- Gemini can discover `search`, `insert`, and `aggregate`
-- a headless smoke test works with `gemini --allowed-mcp-server-names sqlite-lab --yolo -p "..."`
-
-### Antigravity
-
-Antigravity commonly uses an `mcp_config.json` file with a shape similar to Gemini CLI. Verify the current product behavior in your installed version before grading against exact UI steps.
-
-## Deliverable Checklist
-
-- working FastMCP server
-- SQLite database and seed data
-- `search`, `insert`, `aggregate` tools
-- schema resource and schema resource template
-- verification steps
-- automated tests or repeatable verification script
-- client configuration example
-- README with setup and demo steps
-- Inspector startup command or helper script
-- at least one verified Gemini CLI or Claude/Codex client test
-
-## Bonus
-
-Optional bonus:
-
-- add authentication for SSE or HTTP transport
-- support both SQLite and PostgreSQL with the same MCP surface
-- add richer output annotations or pagination
+---
+*Hoàn thành bởi: [Tên của bạn] - Track 3 VinUni AI20K*
