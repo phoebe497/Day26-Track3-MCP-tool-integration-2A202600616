@@ -93,4 +93,4 @@ Thêm cấu hình sau vào file `.mcp.json` của Claude:
 ```
 
 ---
-*Hoàn thành bởi: [Tên của bạn] - Track 3 VinUni AI20K*
+*Hoàn thành bởi: Nguyễn Như Yến Phương - 2A202600616*
